@@ -1,7 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { flushSync } from "react-dom";
 
 const RED = "#E23744";
 const GREEN = "#267E3E";
@@ -29,6 +30,11 @@ function ReviewScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Only one watchdog may exist at a time. If the user abandons a slow
+  // submit (navigates away) and starts a new one, the previous timer must
+  // not come back to life and touch the screen mid-flight of the new one.
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Ask the backend for the restaurant's name. The frontend never invents data.
   useEffect(() => {
     async function load() {
@@ -43,6 +49,16 @@ function ReviewScreen() {
     load();
   }, [restaurantId]);
 
+  // If the screen ever unmounts while a submit is pending, disarm the
+  // watchdog so it cannot fire into a gone screen.
+  useEffect(() => {
+    return () => {
+      if (watchdogRef.current !== null) {
+        clearTimeout(watchdogRef.current);
+      }
+    };
+  }, []);
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSubmitting(true);
@@ -51,6 +67,10 @@ function ReviewScreen() {
     // Ten-second watchdog: when nothing has arrived in 10 s, abandon the
     // request, show the timeout message and give the button back — no
     // matter what the pending fetch does (or fails to do) afterwards.
+    if (watchdogRef.current !== null) {
+      // Disarm any watchdog left behind by an abandoned earlier submit.
+      clearTimeout(watchdogRef.current);
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => {
       controller.abort();
@@ -59,6 +79,7 @@ function ReviewScreen() {
       );
       setSubmitting(false);
     }, 10000);
+    watchdogRef.current = timer;
 
     try {
       const res = await fetch("/api/reviews", {
@@ -75,8 +96,21 @@ function ReviewScreen() {
       clearTimeout(timer);
 
       if (res.status === 201) {
-        // Success: hand control to the restaurant page, which fetches its
-        // facts fresh. Keep "Saving…" showing until the new screen arrives.
+        // Success. Reset the WHOLE form BEFORE navigating: Next's router
+        // keeps this component's client state and serves the very same
+        // instance back when the screen reopens. The catch: React batches
+        // the reset states, and router.push can swap the screen away before
+        // they commit — the router then caches "Saving…" + the old stars
+        // and the reopening shows the stuck form. flushSync forces React
+        // to commit the resets right now, so the cached copy wakes up
+        // empty, with the button enabled and nothing in the saving state.
+        flushSync(() => {
+          setSubmitting(false);
+          setRating(0);
+          setHovered(0);
+          setComment("");
+          setError(null);
+        });
         router.push(`/restaurant/${restaurantId}`);
         return;
       }
