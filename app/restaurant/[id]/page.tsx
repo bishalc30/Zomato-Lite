@@ -1,9 +1,18 @@
-"use client";
-
-import { Suspense, useEffect, useState } from "react";
+// This screen renders ON THE SERVER, once per request: the page HTML arrives
+// with the restaurant's facts already printed in it (name, average, count,
+// reviews). No browser fetch and no extra API round trip — the old client
+// version made the browser download HTML, then JavaScript, then call
+// /api/restaurants/[id]. All of that collapses into one request here.
+//
+// This project runs with Cache Components, so all data access lives inside
+// <Suspense>: the page shell answers immediately, and the real facts (rendered
+// at request time — never from a stale cache, thanks to `connection()`)
+// stream in on the same connection with the design's existing "Loading…" box.
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { connection } from "next/server";
+import { loadRestaurantData } from "@/lib/restaurant-data";
 
 const RED = "#E23744";
 const GREEN = "#267E3E";
@@ -15,28 +24,14 @@ type Review = {
   createdAt: string;
 };
 
-type RestaurantData = {
-  name: string;
-  cuisine: string;
-  area: string;
-  averageRating: number | null;
-  totalReviews: number;
-  latestReview: Review | null;
-  reviews: Review[];
-};
-
-// Presentation-only: a rating number as text symbols.
-function stars(rating: number) {
-  return "★".repeat(rating) + "☆".repeat(5 - rating);
-}
-
 // Presentation-only: turns a timestamp into "4m ago" style text.
+// Runs on the server at request time, so it is always fresh.
 function timeAgo(iso: string) {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
+  const hours = Math.floor(seconds / 3600);
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
@@ -88,40 +83,22 @@ function ReviewCard({
   );
 }
 
-function RestaurantScreen() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+// The URL's [id] arrives as text; await it, convert it, and load every fact
+// with the SAME loader the API route uses — one source of truth.
+async function RestaurantScreen({
+  paramsPromise,
+}: {
+  paramsPromise: Promise<{ id: string }>;
+}) {
+  const { id: idParam } = await paramsPromise;
+  await connection(); // never serve a cached copy of ratings/reviews
+  const id = Number(idParam);
+  const data = Number.isInteger(id) ? await loadRestaurantData(id) : null;
 
-  const [data, setData] = useState<RestaurantData | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
-
-  // The screen calls the API and renders what it gets. That is all it is.
-  useEffect(() => {
-    async function load() {
-      const res = await fetch(`/api/restaurants/${id}`);
-      if (res.status === 404) {
-        setStatus("notfound");
-        return;
-      }
-      const json = await res.json();
-      setData(json);
-      setStatus("ready");
-    }
-    load();
-  }, [id]);
-
-  if (status === "notfound") {
+  if (!data) {
     return (
       <main className="mx-auto w-full max-w-[560px] px-6 py-12">
         <p className="text-lg">There is no restaurant here.</p>
-      </main>
-    );
-  }
-
-  if (status === "loading" || !data) {
-    return (
-      <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-        <p className="text-neutral-400">Loading…</p>
       </main>
     );
   }
@@ -239,7 +216,7 @@ function RestaurantScreen() {
       {/* Sticky at the bottom of the screen, always visible while scrolling */}
       <div className="sticky bottom-4 z-10 mt-10">
         <Link
-          href={`/review/${id}`}
+          href={`/review/${idParam}`}
           className="block w-full rounded-xl px-4 py-3.5 text-center text-base font-extrabold text-white shadow-lg transition-transform hover:scale-[1.01]"
           style={{ backgroundColor: RED }}
         >
@@ -250,9 +227,13 @@ function RestaurantScreen() {
   );
 }
 
-// Wrap the screen in <Suspense>: the page shell can prerender without knowing
-// the URL parameter, and the real content streams in once useParams() can answer.
-export default function RestaurantPage() {
+// The shell (header, loading box) prerenders; the URL parameter and the
+// database facts resolve and stream in once the request actually arrives.
+export default function RestaurantPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   return (
     <Suspense
       fallback={
@@ -261,7 +242,7 @@ export default function RestaurantPage() {
         </main>
       }
     >
-      <RestaurantScreen />
+      <RestaurantScreen paramsPromise={params} />
     </Suspense>
   );
 }

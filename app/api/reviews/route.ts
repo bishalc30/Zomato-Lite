@@ -30,23 +30,31 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Comment is OPTIONAL as of the product decision "rating-only reviews".
-  //    The backend still refuses a comment that is present but not text:
-  //    absence is allowed; the wrong type is not.
-  let comment: string | null = null;
+  // 2. A written review is REQUIRED as of the product decision to make
+  //    it mandatory — a rating alone is no longer enough for NEW reviews.
+  //    (The database still keeps old rating-only rows exactly as they are;
+  //    nothing about the schema or stored data changes.)
+  //    First shape: it must be text if it arrives at all. Then content:
+  //    after trimming spaces it must still have at least one character.
   const commentValue = (body as { comment?: unknown }).comment;
-  if (commentValue !== undefined && commentValue !== null) {
-    if (typeof commentValue !== "string") {
-      return Response.json(
-        { error: "Comment must be text if provided." },
-        { status: 400 }
-      );
-    }
-    const trimmed = commentValue.trim();
-    // Whitespace-only is treated the same as no comment at all.
-    if (trimmed.length > 0) {
-      comment = trimmed;
-    }
+  if (commentValue === undefined || commentValue === null) {
+    return Response.json(
+      { error: "Please write a short review — a rating alone isn't enough." },
+      { status: 400 }
+    );
+  }
+  if (typeof commentValue !== "string") {
+    return Response.json(
+      { error: "Please write your review using letters." },
+      { status: 400 }
+    );
+  }
+  const comment = commentValue.trim();
+  if (comment.length === 0) {
+    return Response.json(
+      { error: "Please write a short review — a rating alone isn't enough." },
+      { status: 400 }
+    );
   }
 
   // 3. The restaurant must actually exist — this is the database lookup.
