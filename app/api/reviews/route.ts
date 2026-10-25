@@ -1,4 +1,4 @@
-import { sql } from "@/lib/db";
+import { rows } from "@/lib/db";
 
 // The backend validates in this order and stops at the first failure,
 // because a request only ever needs to be told about one problem at a time.
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  const matches = await sql.query(
+  const matches = await rows<{ id: number }>(
     "SELECT id FROM restaurants WHERE id = $1",
     [restaurantId]
   );
@@ -61,10 +61,11 @@ export async function POST(request: Request) {
 
   // 4. All checks passed: write exactly one row of fact into the database.
   //    RETURNING id lets the database tell us which row it created.
-  const [inserted] = await sql.query(
+  const insertedRows = await rows<{ id: number }>(
     "INSERT INTO reviews (restaurant_id, rating, comment) VALUES ($1, $2, $3) RETURNING id",
     [restaurantId, rating, comment.trim()]
   );
+  const inserted = insertedRows[0];
 
   return Response.json(
     { success: true, reviewId: inserted.id },
