@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const RED = "#E23744";
 const GREEN = "#267E3E";
@@ -134,6 +135,26 @@ export default function ReviewScreen({
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-6 pb-10 pt-8">
+      {/* Back to the restaurant. A plain link (not browser history) so it
+          works even when this page is opened directly. Grey, dark on hover. */}
+      <Link
+        href={`/restaurant/${restaurantId}`}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-neutral-400 transition-colors hover:text-neutral-700"
+      >
+        <svg
+          className="h-4 w-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M19 12H5M12 19l-7-7 7-7" />
+        </svg>
+        Back
+      </Link>
       <form
         onSubmit={handleSubmit}
         className="rounded-2xl bg-white p-5 shadow-md"
