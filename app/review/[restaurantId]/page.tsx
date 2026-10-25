@@ -48,28 +48,66 @@ function ReviewScreen() {
     setSubmitting(true);
     setError(null);
 
-    const res = await fetch("/api/reviews", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        restaurantId: Number(restaurantId),
-        rating,
-        // OPTIONAL: send only when there is text. The backend allows its absence.
-        ...(comment.trim().length > 0 ? { comment } : {}),
-      }),
-    });
-
-    if (res.status === 400) {
-      // Show the backend's own message. It owns the rules; we just display them.
-      const data = await res.json();
-      setError(data.error);
+    // Ten-second watchdog: when nothing has arrived in 10 s, abandon the
+    // request, show the timeout message and give the button back — no
+    // matter what the pending fetch does (or fails to do) afterwards.
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+      setError(
+        "Saving took too long and was stopped after 10 seconds. Please try again."
+      );
       setSubmitting(false);
-      return;
-    }
+    }, 10000);
 
-    // Success: the backend saved the fact. Now the screen hands
-    // control to the restaurant page, which will fetch it fresh.
-    router.push(`/restaurant/${restaurantId}`);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          restaurantId: Number(restaurantId),
+          rating,
+          // OPTIONAL: send only when there is text. The backend allows its absence.
+          ...(comment.trim().length > 0 ? { comment } : {}),
+        }),
+      });
+      clearTimeout(timer);
+
+      if (res.status === 201) {
+        // Success: hand control to the restaurant page, which fetches its
+        // facts fresh. Keep "Saving…" showing until the new screen arrives.
+        router.push(`/restaurant/${restaurantId}`);
+        return;
+      }
+
+      // Any other answer: show the backend's own message when it has one.
+      // (Its words stay authoritative; ours only covers a body-less reply.)
+      let data: { error?: string } | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        // The reply had no JSON on it — the generic message below covers that.
+      }
+      setError(
+        data?.error ??
+          "Could not save your review right now. Please try again."
+      );
+      // The backend refused — wake the button so the user can retry.
+      setSubmitting(false);
+    } catch (err) {
+      // The request itself failed — dropped connection, bad proxy, same.
+      clearTimeout(timer);
+      // If the watchdog already fired, it owns the message and the button;
+      // arriving here means the abandoned request finally died (or the
+      // user's clock was unlucky). Don't overwrite its message.
+      if (!controller.signal.aborted) {
+        setError(
+          "Could not reach the server. Please check your connection and try again."
+        );
+        setSubmitting(false);
+      }
+    }
   }
 
   if (missing) {
