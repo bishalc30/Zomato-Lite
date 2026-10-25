@@ -131,59 +131,69 @@ function RestaurantScreen() {
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-6 pb-6 pt-6">
-      {/* Restaurant info, inside one white card with a soft shadow */}
-      <section className="overflow-hidden rounded-2xl bg-white shadow-md">
-        {/* Food photo banner. Next Image with fill + object-cover keeps the
-            same banner size and crops without stretching. The dark gradient
-            (transparent top → ~70% black bottom) keeps white text readable
-            on any photo. Photo: "Buritos grilling.jpg" via Wikimedia Commons,
-            public domain. */}
-        <div className="relative h-28">
-          <Image
-            src="/burrito.jpg"
-            alt="Grilled burritos wrapped in warm tortillas cooking on a grill — a burrito like the ones sold at Ludhiana Burrito"
-            fill
-            priority
-            sizes="560px"
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-          {/* Restaurant name sits at the bottom-left of the banner */}
-          <h1 className="absolute bottom-3 left-5 text-2xl font-extrabold tracking-tight text-white">
-            {data.name}
-          </h1>
-        </div>
+      {/* Restaurant info card. The photo is the background of the WHOLE card.
+          All restaurant info sits stacked at the BOTTOM-LEFT so the top of the
+          card stays free to show the food; the green rating badge sits at the
+          TOP-RIGHT. A gradient that is transparent until the bottom half keeps
+          the white text readable. Image: burrito-hero.webp in /public. */}
+      <section className="relative min-h-[340px] overflow-hidden rounded-2xl shadow-md">
+        <Image
+          src="/burrito-hero.webp"
+          alt="Two grilled burrito halves stacked on a wooden board, with melted cheese oozing out"
+          fill
+          priority
+          sizes="560px"
+          className="object-cover"
+        />
+        {/* Fully transparent at the top of the card; gets darker only in the
+            bottom 50%, behind the stacked info. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.78) 100%)",
+          }}
+        />
 
-        <div className="p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-neutral-500">{data.area}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
-                  {data.cuisine}
-                </span>
-                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
-                  Dine-in
-                </span>
-              </div>
-            </div>
-
-            {/* Average rating: green badge, white bold number, "/5" below */}
-            <div
-              className="flex shrink-0 flex-col items-center rounded-xl px-4 py-3 text-white"
-              style={{ backgroundColor: GREEN }}
-            >
-              <span className="text-3xl font-extrabold leading-none">
-                {averageText}
-              </span>
-              <span className="mt-1 text-xs font-semibold opacity-80">/5</span>
-            </div>
+        {/* Content layer: badge pinned top-right, info grouped bottom-left. */}
+        <div className="relative flex min-h-[340px] flex-col p-5">
+          {/* Average rating: green badge, white bold number, "/5" below */}
+          <div
+            className="absolute right-5 top-5 flex flex-col items-center rounded-xl px-4 py-3 text-white"
+            style={{ backgroundColor: GREEN }}
+          >
+            <span className="text-3xl font-extrabold leading-none">
+              {averageText}
+            </span>
+            <span className="mt-1 text-xs font-semibold opacity-80">/5</span>
           </div>
 
-          <p className="mt-4 text-xs text-neutral-400">
-            Based on {data.totalReviews}{" "}
-            {data.totalReviews === 1 ? "review" : "reviews"}
-          </p>
+          {/* Small, even vertical gaps (mt-2 / mt-2 / mt-2) between every
+              line of the info stack, all anchored to the card's bottom-left. */}
+          <div className="mt-auto">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              {data.name}
+            </h1>
+
+            {/* Location */}
+            <p className="mt-2 text-sm text-white/85">{data.area}</p>
+
+            {/* Cuisine tags: semi-transparent white chips, frosted glass */}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/40 bg-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                {data.cuisine}
+              </span>
+              <span className="rounded-full border border-white/40 bg-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                Dine-in
+              </span>
+            </div>
+
+            {/* Review count */}
+            <p className="mt-2 text-xs font-semibold text-white/90">
+              Based on {data.totalReviews}{" "}
+              {data.totalReviews === 1 ? "review" : "reviews"}
+            </p>
+          </div>
         </div>
       </section>
 
