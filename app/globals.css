@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fafaf9; /* off-white, warm-tinted */
+  --background: #ffffff; /* white, Zomato-style */
   --foreground: #1c1917; /* near-black, warm-tinted */
 }
 

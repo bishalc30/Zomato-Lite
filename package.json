@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "db:setup": "node --env-file=.env db/setup.mjs",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate-comment-nullable": "node --env-file=.env db/001-comment-nullable.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

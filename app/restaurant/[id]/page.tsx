@@ -4,10 +4,13 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+// Zomato-style red accent, reused everywhere on this theme.
+const RED = "#E23744";
+
 type Review = {
   id: number;
   rating: number;
-  comment: string;
+  comment: string | null;
   createdAt: string;
 };
 
@@ -33,15 +36,48 @@ function shortDate(iso: string) {
   });
 }
 
-function ReviewBody({ review }: { review: Review }) {
+function ReviewCard({
+  review,
+  label,
+  highlighted,
+}: {
+  review: Review;
+  label?: string;
+  highlighted?: boolean;
+}) {
   return (
-    <>
+    <div
+      className={
+        highlighted
+          ? "rounded-xl border p-4"
+          : "rounded-xl border border-neutral-200 bg-white p-4"
+      }
+      style={
+        highlighted
+          ? { borderColor: RED, backgroundColor: "#FFF7F7" }
+          : undefined
+      }
+    >
       <div className="flex items-baseline justify-between">
-        <span className="text-sm text-amber-600">{stars(review.rating)}</span>
-        <span className="text-xs text-stone-400">{shortDate(review.createdAt)}</span>
+        <span className="text-sm" style={{ color: RED }}>
+          {stars(review.rating)}
+        </span>
+        <span className="text-xs text-neutral-400">
+          {shortDate(review.createdAt)}
+        </span>
       </div>
-      <p className="mt-1.5 text-[15px] leading-relaxed">{review.comment}</p>
-    </>
+      {review.comment && (
+        <p className="mt-2 text-[15px] leading-relaxed">{review.comment}</p>
+      )}
+      {label && (
+        <p
+          className="mt-2 text-[11px] font-semibold uppercase tracking-wide"
+          style={{ color: RED }}
+        >
+          {label}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -78,83 +114,78 @@ function RestaurantScreen() {
   if (status === "loading" || !data) {
     return (
       <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-        <p className="text-stone-400">Loading…</p>
+        <p className="text-neutral-400">Loading…</p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-      {/* 1. Name, with cuisine and area underneath, muted */}
-      <h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1>
-      <p className="mt-1 text-sm text-stone-500">
+    <main className="mx-auto w-full max-w-[560px] px-6 py-10">
+      {/* Header block: name, location, average — clearly prominent */}
+      <h1 className="text-3xl font-bold tracking-tight">{data.name}</h1>
+      <p className="mt-1 text-sm text-neutral-500">
         {data.cuisine} · {data.area}
       </p>
 
-      {/* 2. The average rating. This line PRINTS the number the backend
+      {/* The average rating. This line PRINTS the number the backend
           computed (AVG(rating), rounded there). There is no calculation
           anywhere in this file. */}
-      <div className="mt-8 flex items-baseline gap-3">
-        <p className="text-6xl font-semibold tracking-tight text-amber-600">
+      <div className="mt-4 flex items-baseline gap-3">
+        <p className="text-5xl font-bold tracking-tight" style={{ color: RED }}>
           {data.averageRating ?? "—"}
         </p>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-neutral-500">
           {data.totalReviews} {data.totalReviews === 1 ? "review" : "reviews"}
         </p>
       </div>
 
       {/* Empty state: nothing yet. Invite the first review. */}
       {data.totalReviews === 0 && (
-        <div className="mt-8 rounded-lg border border-stone-200 p-5 text-center">
-          <p className="text-[15px] font-medium">No reviews yet</p>
-          <p className="mt-1 text-sm text-stone-500">
+        <div className="mt-8 rounded-xl border border-neutral-200 p-5 text-center">
+          <p className="text-[15px] font-semibold">No reviews yet</p>
+          <p className="mt-1 text-sm text-neutral-500">
             Nobody has eaten here in the app before. Be the first to say how it
             was.
           </p>
-          <Link
-            href={`/review/${id}`}
-            className="mt-3 inline-block rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-stone-800"
-          >
-            Write the first review
-          </Link>
         </div>
       )}
 
-      {/* 3. The latest review — set apart, because recency is what people trust */}
+      {/* The way in to write a review — filled red, unmissable */}
+      <Link
+        href={`/review/${id}`}
+        className="mt-6 block w-full rounded-xl px-4 py-3.5 text-center text-base font-semibold text-white transition-transform hover:scale-[1.01]"
+        style={{ backgroundColor: RED }}
+      >
+        Write a Review
+      </Link>
+
+      {/* Latest review, set apart — because recency is what people trust */}
       {data.latestReview && (
         <section className="mt-8">
-          <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
             Latest review
           </p>
-          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/50 p-5">
-            <ReviewBody review={data.latestReview} />
+          <div className="mt-3">
+            <ReviewCard review={data.latestReview} highlighted label="Latest" />
           </div>
         </section>
       )}
 
-      {/* 4. Older reviews below, in a plain list, newest first */}
+      {/* Older reviews below, clean cards, newest first */}
       {data.reviews.length > 0 && (
         <section className="mt-8">
-          <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
             Earlier reviews
           </p>
-          <ul className="mt-2">
+          <ul className="mt-3 space-y-3">
             {data.reviews.map((review) => (
-              <li key={review.id} className="border-b border-stone-200 py-4">
-                <ReviewBody review={review} />
+              <li key={review.id}>
+                <ReviewCard review={review} />
               </li>
             ))}
           </ul>
         </section>
       )}
-
-      {/* 5. The way in to write a review */}
-      <Link
-        href={`/review/${id}`}
-        className="mt-10 inline-block text-sm font-medium text-amber-700 underline underline-offset-4 hover:text-amber-800"
-      >
-        Write a review →
-      </Link>
     </main>
   );
 }
@@ -166,7 +197,7 @@ export default function RestaurantPage() {
     <Suspense
       fallback={
         <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-          <p className="text-stone-400">Loading…</p>
+          <p className="text-neutral-400">Loading…</p>
         </main>
       }
     >

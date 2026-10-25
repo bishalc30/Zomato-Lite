@@ -30,13 +30,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Comment must be text with something left after trimming whitespace.
-  const comment = (body as { comment?: unknown }).comment;
-  if (typeof comment !== "string" || comment.trim().length === 0) {
-    return Response.json(
-      { error: "Comment cannot be empty." },
-      { status: 400 }
-    );
+  // 2. Comment is OPTIONAL as of the product decision "rating-only reviews".
+  //    The backend still refuses a comment that is present but not text:
+  //    absence is allowed; the wrong type is not.
+  let comment: string | null = null;
+  const commentValue = (body as { comment?: unknown }).comment;
+  if (commentValue !== undefined && commentValue !== null) {
+    if (typeof commentValue !== "string") {
+      return Response.json(
+        { error: "Comment must be text if provided." },
+        { status: 400 }
+      );
+    }
+    const trimmed = commentValue.trim();
+    // Whitespace-only is treated the same as no comment at all.
+    if (trimmed.length > 0) {
+      comment = trimmed;
+    }
   }
 
   // 3. The restaurant must actually exist — this is the database lookup.
@@ -63,7 +73,7 @@ export async function POST(request: Request) {
   //    RETURNING id lets the database tell us which row it created.
   const insertedRows = await rows<{ id: number }>(
     "INSERT INTO reviews (restaurant_id, rating, comment) VALUES ($1, $2, $3) RETURNING id",
-    [restaurantId, rating, comment.trim()]
+    [restaurantId, rating, comment]
   );
   const inserted = insertedRows[0];
 

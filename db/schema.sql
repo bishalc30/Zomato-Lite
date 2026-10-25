@@ -9,6 +9,6 @@ CREATE TABLE reviews (
   id            SERIAL PRIMARY KEY,
   restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
   rating        INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-  comment       TEXT NOT NULL,
+  comment       TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

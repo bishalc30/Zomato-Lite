@@ -3,6 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
+// Zomato-style red accent, reused everywhere on this theme.
+const RED = "#E23744";
+
 function ReviewScreen() {
   const params = useParams<{ restaurantId: string }>();
   const restaurantId = params.restaurantId;
@@ -12,6 +15,7 @@ function ReviewScreen() {
   const [missing, setMissing] = useState(false);
 
   const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -41,7 +45,8 @@ function ReviewScreen() {
       body: JSON.stringify({
         restaurantId: Number(restaurantId),
         rating,
-        comment,
+        // Optional: send only when there is text. The backend allows its absence.
+        ...(comment.trim().length > 0 ? { comment } : {}),
       }),
     });
 
@@ -66,40 +71,50 @@ function ReviewScreen() {
     );
   }
 
-  const canSubmit = rating >= 1 && comment.trim().length > 0 && !submitting;
+  const shown = hovered > 0 ? hovered : rating;
+  // A rating is required; the comment is not.
+  const canSubmit = rating >= 1 && !submitting;
 
   return (
-    <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        {name ?? "Loading…"}
-      </h1>
-      <p className="mt-1 text-sm text-stone-500">Write a review</p>
+    <main className="mx-auto w-full max-w-[560px] px-6 py-10">
+      <h1 className="text-3xl font-bold tracking-tight">{name ?? "Loading…"}</h1>
+      <p className="mt-1 text-sm text-neutral-500">Write a review</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-8">
         <div>
-          <label className="block text-sm font-medium">Your rating</label>
-          <div className="mt-2 flex gap-1">
+          <label className="block text-sm font-semibold">Your rating</label>
+          <div
+            className="mt-3 flex gap-4"
+            onMouseLeave={() => setHovered(0)}
+          >
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 type="button"
                 onClick={() => setRating(star)}
+                onMouseEnter={() => setHovered(star)}
                 aria-label={`${star} star${star > 1 ? "s" : ""}`}
-                className={`text-3xl leading-none transition-colors ${
-                  star <= rating
-                    ? "text-amber-600"
-                    : "text-stone-300 hover:text-stone-400"
-                }`}
+                className="h-14 w-14 text-5xl leading-none transition-transform duration-100 hover:scale-110"
+                style={{
+                  // Clear hover state (light red) and clear selected state (solid red)
+                  color: star <= shown ? RED : "#D4D4D4",
+                }}
               >
                 &#9733;
               </button>
             ))}
           </div>
+          <p className="mt-2 text-sm text-neutral-500">
+            {shown === 0
+              ? "Tap a star"
+              : `${shown} star${shown > 1 ? "s" : ""}`}
+          </p>
         </div>
 
         <div>
-          <label htmlFor="comment" className="block text-sm font-medium">
-            Your review
+          <label htmlFor="comment" className="block text-sm font-semibold">
+            Your review{" "}
+            <span className="font-normal text-neutral-400">(optional)</span>
           </label>
           <textarea
             id="comment"
@@ -107,12 +122,12 @@ function ReviewScreen() {
             onChange={(e) => setComment(e.target.value)}
             rows={4}
             placeholder="Paneer burrito is unreal…"
-            className="mt-2 w-full resize-none rounded-lg border border-stone-300 bg-white px-3 py-2 text-base placeholder:text-stone-400 focus:border-amber-600 focus:outline-none"
+            className="mt-2 w-full resize-none rounded-xl border border-neutral-300 bg-white px-3 py-2 text-base placeholder:text-neutral-400 focus:border-[#E23744] focus:outline-none"
           />
         </div>
 
         {error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
           </p>
         )}
@@ -120,7 +135,8 @@ function ReviewScreen() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="w-full rounded-lg bg-stone-900 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-500 hover:brightness-110"
+          style={canSubmit ? { backgroundColor: RED } : undefined}
         >
           {submitting ? "Saving…" : "Submit"}
         </button>
@@ -135,7 +151,7 @@ export default function ReviewPage() {
     <Suspense
       fallback={
         <main className="mx-auto w-full max-w-[560px] px-6 py-12">
-          <p className="text-stone-400">Loading…</p>
+          <p className="text-neutral-400">Loading…</p>
         </main>
       }
     >
