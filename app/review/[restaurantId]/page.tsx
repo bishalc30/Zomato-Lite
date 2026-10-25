@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 
-export default function ReviewPage() {
+function ReviewScreen() {
   const params = useParams<{ restaurantId: string }>();
   const restaurantId = params.restaurantId;
   const router = useRouter();
@@ -127,5 +126,20 @@ export default function ReviewPage() {
         </button>
       </form>
     </main>
+  );
+}
+
+// <Suspense> lets the page shell prerender; useParams() only answers at runtime.
+export default function ReviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto w-full max-w-[560px] px-6 py-12">
+          <p className="text-stone-400">Loading…</p>
+        </main>
+      }
+    >
+      <ReviewScreen />
+    </Suspense>
   );
 }

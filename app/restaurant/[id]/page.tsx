@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -37,26 +37,20 @@ function ReviewBody({ review }: { review: Review }) {
   return (
     <>
       <div className="flex items-baseline justify-between">
-        <span className="text-sm text-amber-600">
-          {stars(review.rating)}
-        </span>
-        <span className="text-xs text-stone-400">
-          {shortDate(review.createdAt)}
-        </span>
+        <span className="text-sm text-amber-600">{stars(review.rating)}</span>
+        <span className="text-xs text-stone-400">{shortDate(review.createdAt)}</span>
       </div>
       <p className="mt-1.5 text-[15px] leading-relaxed">{review.comment}</p>
     </>
   );
 }
 
-export default function RestaurantPage() {
+function RestaurantScreen() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
   const [data, setData] = useState<RestaurantData | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "notfound">(
-    "loading"
-  );
+  const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
 
   // The screen calls the API and renders what it gets. That is all it is.
   useEffect(() => {
@@ -105,8 +99,7 @@ export default function RestaurantPage() {
           {data.averageRating ?? "—"}
         </p>
         <p className="text-sm text-stone-500">
-          {data.totalReviews}{" "}
-          {data.totalReviews === 1 ? "review" : "reviews"}
+          {data.totalReviews} {data.totalReviews === 1 ? "review" : "reviews"}
         </p>
       </div>
 
@@ -163,5 +156,21 @@ export default function RestaurantPage() {
         Write a review →
       </Link>
     </main>
+  );
+}
+
+// Wrap the screen in <Suspense>: the page shell can prerender without knowing
+// the URL parameter, and the real content streams in once useParams() can answer.
+export default function RestaurantPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto w-full max-w-[560px] px-6 py-12">
+          <p className="text-stone-400">Loading…</p>
+        </main>
+      }
+    >
+      <RestaurantScreen />
+    </Suspense>
   );
 }
