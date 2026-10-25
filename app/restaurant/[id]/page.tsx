@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -125,13 +126,6 @@ function RestaurantScreen() {
     );
   }
 
-  // "LB" — initials from the name's first letters. Display logic, not maths.
-  const initials = data.name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word.charAt(0).toUpperCase())
-    .join("");
-
   // The average is printed exactly as the backend computed it. No maths here.
   const averageText = data.averageRating ?? "—";
 
@@ -139,28 +133,31 @@ function RestaurantScreen() {
     <div className="mx-auto w-full max-w-[560px] px-6 pb-6 pt-6">
       {/* Restaurant info, inside one white card with a soft shadow */}
       <section className="overflow-hidden rounded-2xl bg-white shadow-md">
-        {/* Red banner with a subtle dot pattern and big initials */}
-        <div
-          className="flex h-28 items-center justify-center"
-          style={{
-            backgroundColor: RED,
-            backgroundImage:
-              "radial-gradient(rgba(255,255,255,0.28) 1.5px, transparent 1.5px)",
-            backgroundSize: "14px 14px",
-          }}
-        >
-          <span className="text-6xl font-extrabold tracking-tight text-white">
-            {initials}
-          </span>
+        {/* Food photo banner. Next Image with fill + object-cover keeps the
+            same banner size and crops without stretching. The dark gradient
+            (transparent top → ~70% black bottom) keeps white text readable
+            on any photo. Photo: "Buritos grilling.jpg" via Wikimedia Commons,
+            public domain. */}
+        <div className="relative h-28">
+          <Image
+            src="/burrito.jpg"
+            alt="Grilled burritos wrapped in warm tortillas cooking on a grill — a burrito like the ones sold at Ludhiana Burrito"
+            fill
+            priority
+            sizes="560px"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+          {/* Restaurant name sits at the bottom-left of the banner */}
+          <h1 className="absolute bottom-3 left-5 text-2xl font-extrabold tracking-tight text-white">
+            {data.name}
+          </h1>
         </div>
 
         <div className="p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight">
-                {data.name}
-              </h1>
-              <p className="mt-0.5 text-sm text-neutral-500">{data.area}</p>
+              <p className="text-sm text-neutral-500">{data.area}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-600">
                   {data.cuisine}
