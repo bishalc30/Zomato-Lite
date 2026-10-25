@@ -7,7 +7,7 @@
 // This project runs with Cache Components, so all data access lives inside
 // <Suspense>: the page shell answers immediately, and the real facts (rendered
 // at request time — never from a stale cache, thanks to `connection()`)
-// stream in on the same connection with the design's existing "Loading…" box.
+// stream in on the same connection.
 import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -24,61 +24,41 @@ type Review = {
   createdAt: string;
 };
 
-// Presentation-only: turns a timestamp into "4m ago" style text.
-// Runs on the server at request time, so it is always fresh.
-function timeAgo(iso: string) {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(seconds / 3600);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  return `${months}mo ago`;
+// Presentation-only: a timestamp as a short date ("25 Oct").
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
-// A review card. If a review has no text, only the rating row shows —
-// no empty space.
-function ReviewCard({
-  review,
-  highlighted,
-}: {
-  review: Review;
-  highlighted?: boolean;
-}) {
+// Presentation-only: one review's rating as 5 small stars — filled in the
+// green accent, empty in light grey. Used in the list AND the latest card.
+function StarRow({ rating }: { rating: number }) {
   return (
-    <div
-      className={
-        highlighted
-          ? "relative rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
-          : "rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
-      }
-      style={highlighted ? { borderLeft: `4px solid ${GREEN}` } : undefined}
-    >
-      {highlighted && (
+    <span className="flex items-center gap-0.5" aria-label={`${rating} of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((i) => (
         <span
-          className="absolute -top-2.5 left-4 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-          style={{ backgroundColor: GREEN }}
+          key={i}
+          className="text-sm leading-none"
+          style={{ color: i <= rating ? GREEN : "#D4D4D4" }}
         >
-          Latest
+          ★
         </span>
-      )}
-      <div className="flex items-center justify-between">
-        <span
-          className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-bold text-white"
-          style={{ backgroundColor: GREEN }}
-        >
-          {review.rating}
-        </span>
-        <span className="text-xs text-neutral-400">
-          {timeAgo(review.createdAt)}
-        </span>
-      </div>
-      {review.comment && (
-        <p className="mt-2 text-[15px] leading-relaxed">{review.comment}</p>
-      )}
+      ))}
+    </span>
+  );
+}
+
+// The stars · date line every review ends with (even ones with no text).
+function MetaLine({ review }: { review: Review }) {
+  return (
+    <div className="mt-2.5 flex items-center gap-2">
+      <StarRow rating={review.rating} />
+      <span className="text-xs text-neutral-300">·</span>
+      <span className="text-xs text-neutral-400">
+        {formatDate(review.createdAt)}
+      </span>
     </div>
   );
 }
@@ -109,10 +89,10 @@ async function RestaurantScreen({
   return (
     <div className="mx-auto w-full max-w-[560px] px-6 pb-6 pt-6">
       {/* Restaurant info card. The photo is the background of the WHOLE card.
-          All restaurant info sits stacked at the BOTTOM-LEFT so the top of the
-          card stays free to show the food; the green rating badge sits at the
-          TOP-RIGHT. A gradient that is transparent until the bottom half keeps
-          the white text readable. Image: burrito-hero.webp in /public. */}
+          All restaurant info sits stacked at the BOTTOM-LEFT; the average
+          rating sits as pure typography at the photo's top-right (next to the
+          name's line, right-aligned). A gradient that is transparent until
+          the bottom half keeps both readable. Image: burrito-hero.webp. */}
       <section className="relative min-h-[340px] overflow-hidden rounded-2xl shadow-md">
         <Image
           src="/burrito-hero.webp"
@@ -132,25 +112,42 @@ async function RestaurantScreen({
           }}
         />
 
-        {/* Content layer: badge pinned top-right, info grouped bottom-left. */}
+        {/* Content layer. Bottom-left info stack; average right-aligned on
+            the name's line. (The old green badge box is replaced by pure
+            type: big green number + baseline "/5" + small review count.) */}
         <div className="relative flex min-h-[340px] flex-col p-5">
-          {/* Average rating: green badge, white bold number, "/5" below */}
-          <div
-            className="absolute right-5 top-5 flex flex-col items-center rounded-xl px-4 py-3 text-white"
-            style={{ backgroundColor: GREEN }}
-          >
-            <span className="text-3xl font-extrabold leading-none">
-              {averageText}
-            </span>
-            <span className="mt-1 text-xs font-semibold opacity-80">/5</span>
-          </div>
-
-          {/* Small, even vertical gaps (mt-2 / mt-2 / mt-2) between every
-              line of the info stack, all anchored to the card's bottom-left. */}
           <div className="mt-auto">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              {data.name}
-            </h1>
+            <div className="flex items-end justify-between gap-3">
+              <h1 className="text-3xl font-extrabold tracking-tight text-white">
+                {data.name}
+              </h1>
+
+              {/* Typographic average — no box, no background. A faint dark
+                  glow keeps the green readable over the bright photo. */}
+              <div className="flex shrink-0 flex-col items-end">
+                <div className="flex items-baseline">
+                  <span
+                    className="text-4xl font-extrabold leading-none tracking-tight sm:text-5xl"
+                    style={{ color: GREEN, textShadow: "0 1px 8px rgba(0,0,0,0.45)" }}
+                  >
+                    {averageText}
+                  </span>
+                  <span
+                    className="ml-0.5 text-lg font-semibold leading-none text-white/70"
+                    style={{ textShadow: "0 1px 8px rgba(0,0,0,0.45)" }}
+                  >
+                    /5
+                  </span>
+                </div>
+                <p
+                  className="mt-1.5 text-xs font-medium text-white/70"
+                  style={{ textShadow: "0 1px 6px rgba(0,0,0,0.45)" }}
+                >
+                  {data.totalReviews}{" "}
+                  {data.totalReviews === 1 ? "review" : "reviews"}
+                </p>
+              </div>
+            </div>
 
             {/* Location */}
             <p className="mt-2 text-sm text-white/85">{data.area}</p>
@@ -164,12 +161,6 @@ async function RestaurantScreen({
                 Dine-in
               </span>
             </div>
-
-            {/* Review count */}
-            <p className="mt-2 text-xs font-semibold text-white/90">
-              Based on {data.totalReviews}{" "}
-              {data.totalReviews === 1 ? "review" : "reviews"}
-            </p>
           </div>
         </div>
       </section>
@@ -185,28 +176,51 @@ async function RestaurantScreen({
         </div>
       )}
 
-      {/* Latest review: white card with a green left accent and a pill tag */}
+      {/* Latest review: kept as the highlighted card (green left accent,
+          white box, pill tag) — but its body now uses the same review-text-
+          then stars · date line as the list, for consistency. */}
       {data.latestReview && (
         <section className="mt-8">
           <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
             Latest review
           </p>
-          <div className="mt-3">
-            <ReviewCard review={data.latestReview} highlighted />
+          <div
+            className="relative mt-3 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
+            style={{ borderLeft: `4px solid ${GREEN}` }}
+          >
+            <span
+              className="absolute -top-2.5 left-4 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: GREEN }}
+            >
+              Latest
+            </span>
+            {data.latestReview.comment && (
+              <p className="mt-3 text-[17px] leading-relaxed text-neutral-900">
+                {data.latestReview.comment}
+              </p>
+            )}
+            <MetaLine review={data.latestReview} />
           </div>
         </section>
       )}
 
-      {/* Earlier reviews: plain white rounded cards, newest first */}
+      {/* Earlier reviews: a clean, borderless list separated by thin
+          light-grey dividers. Review text first (larger, dark), then the
+          stars · date line. Reviews with no text show only that line. */}
       {data.reviews.length > 0 && (
         <section className="mt-8">
           <p className="text-xs font-bold uppercase tracking-wide text-neutral-400">
             Earlier reviews
           </p>
-          <ul className="mt-3 space-y-3">
+          <ul className="mt-3 divide-y divide-neutral-200">
             {data.reviews.map((review) => (
-              <li key={review.id}>
-                <ReviewCard review={review} />
+              <li key={review.id} className="py-5 first:pt-3 last:pb-0">
+                {review.comment && (
+                  <p className="text-[17px] leading-relaxed text-neutral-900">
+                    {review.comment}
+                  </p>
+                )}
+                <MetaLine review={review} />
               </li>
             ))}
           </ul>
